@@ -6,23 +6,29 @@ author="Julia Hardy"
 date=`date +"%Y_%m_%d_%H_%M"`
 
 # Usage message
-# PO ANGIELSKU NAPISZ ZEBY BYŁO PRAWILNIE
 usage() {
     echo -n "$(basename "$0"), ${version}
 Usage: $(basename "$0") [OPTION]...
 
-Program used to generate backups TU COś WIECEJ MOZNA
+Program used to generate full and incremental backups at the time specified by user
+Program contains option to reproduce copy indicated by 'date' option or the latest one
 
- Options:
+ Options (backup creation):
   --name            Backup file name prefix
-  --full-interval   Odstęp czasu pomiędzy pełnymi backupami
-  --inc-interval    Odstęp czasu pomiędzy pełnym backupem a przyrostowym lub pomiędzy przyrostowymi
-  --path            Scieżka wierzchołka drzewa katalogów do backupowania
-  --gzip            Wynikiem będzie plik skompresowany programem gzip
-  --ext             Lista rozszerzń plików; backupowane będą pliki z zadanego katalogu, które posiadają podane rozszerzenie
-  --backup-dir      Katalog, gdzie będą składane pliki backupów
+  --full-interval   Time interval between full backups
+  --inc-interval    Time interval between full and incremental backup or two incremental backups
+  --path            Path to files to be backup
+  --gzip            gzip compression
+  --ext             List of file extensions to be backup
+  --backup-dir      Destination folder, where backup will be stored
   -h, --help        Display this help and exit
   -v, --version     Output version information and exit
+
+  Options (reproduce copy):
+  --name            Backup file name prefix
+  --date            Specific date for witch reproduce copy format:year_month_day_hour_minute_second
+  --backup-dir      Destination folder, where backups are stored
+  --out-dir         Destination folder, where to reproduce copy
 "
 }
 
@@ -37,18 +43,26 @@ requirements() {
         echo "Please provide backup file prefix (e.g. --name='prefix')"
         exit
     fi
-    if [[ -z ${fullInterval} ]]; then
-        echo "Please provide time interval between full backups (e.g. --full-interval=10m)"
+    if [[ -z ${backupDate} ]]; then
+        if [[ -z ${backupPath} ]]; then
+          echo "Please provide source path to backup (e.g. --path=./dir-to-backup)"
+          exit
+        fi
+    else
+      if [[ -z ${backupDir} ]]; then
+        echo "Plaese provide directory of bakup folders"
         exit
-    fi
-    if [[ -z ${backupPath} ]]; then
-        echo "Please provide source path to backup (e.g. --path=./dir-to-backup)"
+      fi
+      if [[ -z ${outDir} ]]; then
+        echo "please provide directore where reproduce copy"
         exit
+      fi
     fi
-
-    ## itd :) ...
+    # if [ -z ${fullInterval} ] && [ -z ${incInterval} ]; then
+    #     echo "Please provide time interval between full/incremental backups (e.g. --full-interval=10m/ --inc-interval=10m)"
+    #     exit
+    # fi
 }
-
 # File name generator
 fileNameGenerator() {
     fileName="${name}_${date}.tar"
@@ -58,14 +72,24 @@ fileNameGenerator() {
     echo ${fileName}
 }
 
-# Backup?
+# Backup
 backup() {
     fileName=$(fileNameGenerator)
-    if [[ -z ${gzip} ]]; then
+    if [[ -z ${backupDir} ]]; then
+      if [[ -z ${gzip} ]]; then
+        echo "case1"
         tar -cpf ${fileName} ${backupPath};
         else tar -cpzf ${fileName} ${backupPath};
+          echo "case2"
+      fi
+    else
+      fileName="${backupDir}/${fileName}"
+      # echo ${fileName}
+      if [[ -z ${gzip} ]]; then
+          tar -cpf ${fileName} ${backupPath};
+        else tar -cpzf ${fileName} ${backupPath};
+      fi
     fi
-
 }
 
 ## Extract options
@@ -79,6 +103,8 @@ case ${i} in
     --ext=*) extensions="${i#*=}" ;;
     --backup-dir=*) backupDir="${i#*=}" ;;
     --gzip) gzip=true ;;
+    --date=*) backupDate="${#*=}";;
+    --out-dir=*) outDir="${i#*=}";;
     -h|--help) usage >&2; exit ;;
     -v|--version) version >&2; exit ;;
     *) "Unknown option: ${i%=*}" >&2; exit ;; # remove everything after (and including) '='
