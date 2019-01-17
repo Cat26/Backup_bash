@@ -11,7 +11,7 @@ usage() {
 Usage: $(basename "$0") [OPTION]...
 
 Program used to generate full and incremental backups at the time specified by user
-Program contains option to reproduce copy indicated by 'date' option or the latest one
+Program contains option to restore copy indicated by 'date' option or the latest one
 
  Options (backup creation):
   --name            Backup file name prefix
@@ -19,16 +19,16 @@ Program contains option to reproduce copy indicated by 'date' option or the late
   --inc-interval    Time interval between full and incremental backup or two incremental backups
   --path            Path to files to be backup
   --gzip            gzip compression
-  --ext             List of file extensions to be backup
+  --ext             List of file extensions to be backup format:(.txt .py)
   --backup-dir      Destination folder, where backup will be stored
   -h, --help        Display this help and exit
   -v, --version     Output version information and exit
 
   Options (reproduce copy):
   --name            Backup file name prefix
-  --date            Specific date for witch reproduce copy format:year_month_day_hour_minute_second
+  --date            Specific date for witch restore copy format:year_month_day_hour_minute_second
   --backup-dir      Destination folder, where backups are stored
-  --out-dir         Destination folder, where to reproduce copy
+  --out-dir         Destination folder, where to restore copy
 "
 }
 
@@ -44,7 +44,7 @@ requirements() {
         exit
     fi
     if [[ -z ${backupDate} ]]; then
-        if [[ -z ${backupPath} ]]; then
+        if [[ -z ${pathTo} ]]; then
           echo "Please provide source path to backup (e.g. --path=./dir-to-backup)"
           exit
         fi
@@ -54,11 +54,11 @@ requirements() {
         exit
       fi
       if [[ -z ${outDir} ]]; then
-        echo "please provide directore where reproduce copy"
+        echo "please provide directore where restore copy"
         exit
       fi
     fi
-    # if [ -z ${fullInterval} ] && [ -z ${incInterval} ]; then
+    # if [ -z ${fullInterval} ] || [ -z ${incInterval} ]; then
     #     echo "Please provide time interval between full/incremental backups (e.g. --full-interval=10m/ --inc-interval=10m)"
     #     exit
     # fi
@@ -72,24 +72,49 @@ fileNameGenerator() {
     echo ${fileName}
 }
 
+# files to backup
+pathGenerator() {
+  if [[ -z ${extensions} ]]; then
+    backupPath=${pathTo}
+  else
+    for ext in ${extensions[@]}; do
+      local files+=" "$(find "$pathTo" -name *.${ext})
+    done
+    backupPath=${files}
+  fi
+  echo ${backupPath}
+}
+
 # Backup
 backup() {
     fileName=$(fileNameGenerator)
-    if [[ -z ${backupDir} ]]; then
-      if [[ -z ${gzip} ]]; then
-        echo "case1"
-        tar -cpf ${fileName} ${backupPath};
-        else tar -cpzf ${fileName} ${backupPath};
-          echo "case2"
-      fi
-    else
-      fileName="${backupDir}/${fileName}"
-      # echo ${fileName}
-      if [[ -z ${gzip} ]]; then
-          tar -cpf ${fileName} ${backupPath};
-        else tar -cpzf ${fileName} ${backupPath};
+    backupPath=$(pathGenerator)
+    #create backup
+    if [[ -z ${backupDate} ]]; then #check if user want backup or restore
+      if [[ -z ${fullInterval} ]] && [[ -z ${incInterval} ]]; then #check full and inc interval options
+        if [[ -z ${backupDir} ]]; then #check where to crete backup default:currecnt location
+          if [[ -z ${gzip} ]]; then #check format
+            tar -cpf ${fileName} ${backupPath};
+            else tar -cpzf ${fileName} ${backupPath};
+          fi
+        else
+          fileName="${backupDir}/${fileName}"
+          if [[ -z ${gzip} ]]; then
+              tar -cpf ${fileName} ${backupPath};
+            else tar -cpzf ${fileName} ${backupPath};
+          fi
+        fi
       fi
     fi
+        # elif [[ -z ${fullInterval} ]]; then
+        #   #statements
+        # elif [[ -z ${incInterval} ]]; then
+        #   #statements
+      # fi
+      #resore copy
+    # else
+    #   #resore
+    # fi
 }
 
 ## Extract options
@@ -99,7 +124,7 @@ case ${i} in
     --name=*) name="${i#*=}" ;; # remove everything before (and including) '='
     --full-interval=*) fullInterval="${i#*=}" ;;
     --inc-interval=*) incInterval="${i#*=}" ;;
-    --path=*) backupPath="${i#*=}" ;;
+    --path=*) pathTo="${i#*=}" ;;
     --ext=*) extensions="${i#*=}" ;;
     --backup-dir=*) backupDir="${i#*=}" ;;
     --gzip) gzip=true ;;
