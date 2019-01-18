@@ -3,7 +3,6 @@
 version="0.1.0"
 author="Julia Hardy"
 
-date=`date +"%Y_%m_%d_%H_%M"`
 
 # Usage message
 usage() {
@@ -15,8 +14,8 @@ Program contains option to restore copy indicated by 'date' option or the latest
 
  Options (backup creation):
   --name            Backup file name prefix
-  --full-interval   Time interval between full backups
-  --inc-interval    Time interval between full and incremental backup or two incremental backups
+  --full-interval   Time interval between full backups (seconds)
+  --inc-interval    Time interval between full and incremental backup or two incremental backups (seconds)
   --path            Path to files to be backup
   --gzip            gzip compression
   --ext             List of file extensions to be backup format:(.txt .py)
@@ -45,7 +44,7 @@ requirements() {
     fi
     if [[ -z ${backupDate} ]]; then
         if [[ -z ${pathTo} ]]; then
-          echo "Please provide source path to backup (e.g. --path=./dir-to-backup)"
+          echo "Please provide source path to backup (e.g. --path=dir-to-backup)"
           exit
         fi
     else
@@ -54,7 +53,7 @@ requirements() {
         exit
       fi
       if [[ -z ${outDir} ]]; then
-        echo "please provide directore where restore copy"
+        echo "please provide directory where restore copy"
         exit
       fi
     fi
@@ -65,7 +64,8 @@ requirements() {
 }
 # File name generator
 fileNameGenerator() {
-    fileName="${name}_${date}.tar"
+    date=`date +"%Y_%m_%d_%H_%M_%S"`
+    fileName="${name}_$1_${date}.tar"
     if [[ -z ${gzip} ]]; then : ;
         else fileName="${fileName}.gz";
     fi
@@ -81,7 +81,7 @@ pathGenerator() {
     backupPath=${pathTo}
   else
     for ext in ${extensions[@]}; do
-      local files+=" "$(find "$pathTo" -name *.${ext})
+      files+=" "$(find "$pathTo" -name *.${ext})
     done
     backupPath=${files}
   fi
@@ -99,24 +99,42 @@ packingOptGenerator() {
 
 # Backup
 backup() {
-    fileName=$(fileNameGenerator)
+    fileName=$(fileNameGenerator full)
     packingOpt=$(packingOptGenerator)
+    backupPath=$(pathGenerator)
     #create backup
-    if [[ -z ${backupDate} ]]; then #check if user want backup or restore
-      backupPath=$(pathGenerator)
-      if [[ -z ${fullInterval} ]] && [[ -z ${incInterval} ]]; then #check full and inc interval options
+    if [[ -z ${fullInterval} ]] && [[ -z ${incInterval} ]]; then #check full and inc interval options
+      tar ${packingOpt} ${fileName} ${backupPath}
+    elif [[ -n ${fullInterval} ]] && [[ -n ${incInterval} ]]; then
+      difference=$((${fullInterval} - ${incInterval}))
+      while true; do
+        fileName=$(fileNameGenerator  full)
         tar ${packingOpt} ${fileName} ${backupPath}
-      fi
+        sleep ${incInterval}
+        fileName=$(fileNameGenerator  incr)
+        tar --listed-incremental incr/backup.snar ${packingOpt} ${fileName} ${backupPath}
+        sleep ${difference}
+      done
+    elif [[ -n ${fullInterval} ]] && [[ -z ${incInterval} ]]; then
+      while true; do
+        fileName=$(fileNameGenerator  full)
+        tar ${packingOpt} ${fileName} ${backupPath}
+        sleep ${fullInterval}
+      done
+    elif [[ -z ${fullInterval} ]] && [[ -n ${incInterval} ]]; then
+      while true; do
+        fileName=$(fileNameGenerator  incr)
+        tar --listed-incremental incr/backup.snar ${packingOpt} ${fileName} ${backupPath}
+        sleep ${incInterval}
+      done
     fi
-        # elif [[ -z ${fullInterval} ]]; then
-        #   #statements
-        # elif [[ -z ${incInterval} ]]; then
-        #   #statements
-      # fi
-      #resore copy
-    # else
-    #   #resore
-    # fi
+}
+# restore copy
+restore() {
+  toRestore=$(find "${backupDir}" -name *"${name}_full_${backupDate}"* -o -name *"${name}_incr_${backupDate}"*)
+  # if [[ -z "$toRestore" ]]; then
+  echo $toRestore
+
 }
 
 ## Extract options
@@ -130,16 +148,19 @@ case ${i} in
     --ext=*) extensions="${i#*=}" ;;
     --backup-dir=*) backupDir="${i#*=}" ;;
     --gzip) gzip=true ;;
-    --date=*) backupDate="${#*=}";;
+    --date=*) backupDate="${i#*=}";;
     --out-dir=*) outDir="${i#*=}";;
     -h|--help) usage >&2; exit ;;
     -v|--version) version >&2; exit ;;
     *) "Unknown option: ${i%=*}" >&2; exit ;; # remove everything after (and including) '='
 esac
 done
-requirements
 
-backup
+requirements
+if [[ -z ${backupDate} ]]; then
+  backup
+else restore
+fi
 
 
 
