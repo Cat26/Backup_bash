@@ -69,6 +69,9 @@ fileNameGenerator() {
     if [[ -z ${gzip} ]]; then : ;
         else fileName="${fileName}.gz";
     fi
+    if [[ -z ${backupDir} ]]; then : ; #check where to crete backup default:currecnt location
+        else fileName="${backupDir}/${fileName}"
+    fi
     echo ${fileName}
 }
 
@@ -85,25 +88,24 @@ pathGenerator() {
   echo ${backupPath}
 }
 
+# check tar or gzip
+packingOptGenerator() {
+  if [[ -z ${gzip} ]]; then #check format
+    packingOpt="-cpf"
+  else packingOpt="-cpzf";
+  fi
+  echo ${packingOpt}
+}
+
 # Backup
 backup() {
     fileName=$(fileNameGenerator)
-    backupPath=$(pathGenerator)
+    packingOpt=$(packingOptGenerator)
     #create backup
     if [[ -z ${backupDate} ]]; then #check if user want backup or restore
+      backupPath=$(pathGenerator)
       if [[ -z ${fullInterval} ]] && [[ -z ${incInterval} ]]; then #check full and inc interval options
-        if [[ -z ${backupDir} ]]; then #check where to crete backup default:currecnt location
-          if [[ -z ${gzip} ]]; then #check format
-            tar -cpf ${fileName} ${backupPath};
-            else tar -cpzf ${fileName} ${backupPath};
-          fi
-        else
-          fileName="${backupDir}/${fileName}"
-          if [[ -z ${gzip} ]]; then
-              tar -cpf ${fileName} ${backupPath};
-            else tar -cpzf ${fileName} ${backupPath};
-          fi
-        fi
+        tar ${packingOpt} ${fileName} ${backupPath}
       fi
     fi
         # elif [[ -z ${fullInterval} ]]; then
