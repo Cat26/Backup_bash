@@ -132,9 +132,14 @@ backup() {
 # restore copy
 restore() {
   toRestore=$(find "${backupDir}" -name *"${name}_full_${backupDate}"* -o -name *"${name}_incr_${backupDate}"*)
-  # if [[ -z "$toRestore" ]]; then
-  echo $toRestore
-
+  if [[ -z "$toRestore" ]]; then
+    allFiles=$(find "${backupDir}" -name *"${name}_full_"* -o -name *"${name}_incr_"*)
+    for f in allFiles; do
+      files+=$($f//[!0-9]/})
+    done
+    filesModified=${files}
+  fi
+  echo $filesModified
 }
 
 ## Extract options
