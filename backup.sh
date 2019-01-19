@@ -156,9 +156,9 @@ restore() {
       i=$[$i+1]
       fileDate=$(extractDateFromFileString ${allFilesArr[${i}]})
     done
-
-    echo ${fileToBackup}
+    toRestore=${fileToBackup}
   fi
+  tar -xf ${toRestore} -C ${outDir}
 }
 
 ## Extract options
