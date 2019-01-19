@@ -6,7 +6,7 @@ author="Julia Hardy"
 
 # Usage message
 usage() {
-    echo -n "$(basename "$0"), ${version}
+  echo -n "$(basename "$0"), ${version}
 Usage: $(basename "$0") [OPTION]...
 
 Program used to generate full and incremental backups at the time specified by user
@@ -33,46 +33,46 @@ Program contains option to restore copy indicated by 'date' option or the latest
 
 # Version message
 version() {
-    echo "$(basename "$0"), version: ${version}, author: ${author}"
+  echo "$(basename "$0"), version: ${version}, author: ${author}"
 }
 
 # Option requirements
 requirements() {
-    if [[ -z ${name} ]]; then
-        echo "Please provide backup file prefix (e.g. --name='prefix')"
-        exit
+  if [[ -z ${name} ]]; then
+    echo "Please provide backup file prefix (e.g. --name='prefix')"
+    exit
+  fi
+  if [[ -z ${backupDate} ]]; then
+    if [[ -z ${pathTo} ]]; then
+      echo "Please provide source path to backup (e.g. --path=dir-to-backup)"
+      exit
     fi
-    if [[ -z ${backupDate} ]]; then
-        if [[ -z ${pathTo} ]]; then
-          echo "Please provide source path to backup (e.g. --path=dir-to-backup)"
-          exit
-        fi
-    else
-      if [[ -z ${backupDir} ]]; then
-        echo "Plaese provide directory of bakup folders"
-        exit
-      fi
-      if [[ -z ${outDir} ]]; then
-        echo "please provide directory where restore copy"
-        exit
-      fi
+  else
+    if [[ -z ${backupDir} ]]; then
+      echo "Plaese provide directory of bakup folders"
+      exit
     fi
-    # if [ -z ${fullInterval} ] || [ -z ${incInterval} ]; then
-    #     echo "Please provide time interval between full/incremental backups (e.g. --full-interval=10m/ --inc-interval=10m)"
-    #     exit
-    # fi
+    if [[ -z ${outDir} ]]; then
+      echo "please provide directory where restore copy"
+      exit
+    fi
+  fi
+  # if [ -z ${fullInterval} ] || [ -z ${incInterval} ]; then
+  #     echo "Please provide time interval between full/incremental backups (e.g. --full-interval=10m/ --inc-interval=10m)"
+  #     exit
+  # fi
 }
 # File name generator
 fileNameGenerator() {
-    date=`date +"%Y_%m_%d_%H_%M_%S"`
-    fileName="${name}_$1_${date}.tar"
-    if [[ -z ${gzip} ]]; then : ;
-        else fileName="${fileName}.gz";
-    fi
-    if [[ -z ${backupDir} ]]; then : ; #check where to crete backup default:currecnt location
-        else fileName="${backupDir}/${fileName}"
-    fi
-    echo ${fileName}
+  date=`date +"%Y_%m_%d_%H_%M_%S"`
+  fileName="${name}_$1_${date}.tar"
+  if [[ -z ${gzip} ]]; then : ;
+    else fileName="${fileName}.gz";
+  fi
+  if [[ -z ${backupDir} ]]; then : ; #check where to crete backup default:currecnt location
+    else fileName="${backupDir}/${fileName}"
+  fi
+  echo ${fileName}
 }
 
 # files to backup
@@ -129,40 +129,54 @@ backup() {
       done
     fi
 }
+
+extractDateFromFileString() {
+  str=$1
+  # crazy date string stripping (dir/name_full_2019_01_17_11_55_22.tar -> 20190117115522)
+  str=$(echo ${str} | sed -E "s#${backupDir}/${name}_(full|incr)_([0-9_]+)\.tar(\.gz)?#\2#g")
+  str=${str//_/}
+  echo ${str}
+}
+
 # restore copy
 restore() {
   toRestore=$(find "${backupDir}" -name *"${name}_full_${backupDate}"* -o -name *"${name}_incr_${backupDate}"*)
   if [[ -z "$toRestore" ]]; then
-    allFiles=$(find "${backupDir}" -name *"${name}_full_"* -o -name *"${name}_incr_"* | sort -n -r -t "_" -k2)
-    for f in ${allFiles}; do
-      files+=(${f//[!0-9]/})
+    allFiles=$(find "${backupDir}" -name *"${name}_full_"* -o -name *"${name}_incr_"* | sort -t_ -k3)
+    searchBackupDate=${backupDate//[!0-9]/}
+    allFilesArr=(${allFiles})
+
+    fileToBackup=${allFilesArr[0]} #
+    fileDate=$(extractDateFromFileString ${allFilesArr[0]})
+    i=0
+    while [[ ${fileDate} -lt ${searchBackupDate} && ${i} -lt ${#allFilesArr[@]} ]]
+
+    do
+      fileToBackup=${allFilesArr[$i]}
+      i=$[$i+1]
+      fileDate=$(extractDateFromFileString ${allFilesArr[${i}]})
     done
-    searchDate=${backupDate//[!0-9]/}
-    for i in ${!files[@]}; do
-      if (( ${files[$i]} < ${searchDate} )); then
-        echo ${files[$i]}
-      fi
-    done
+
+    echo ${fileToBackup}
   fi
-  echo ${allFiles}
 }
 
 ## Extract options
 for i in "$@"
 do
 case ${i} in
-    --name=*) name="${i#*=}" ;; # remove everything before (and including) '='
-    --full-interval=*) fullInterval="${i#*=}" ;;
-    --inc-interval=*) incInterval="${i#*=}" ;;
-    --path=*) pathTo="${i#*=}" ;;
-    --ext=*) extensions="${i#*=}" ;;
-    --backup-dir=*) backupDir="${i#*=}" ;;
-    --gzip) gzip=true ;;
-    --date=*) backupDate="${i#*=}";;
-    --out-dir=*) outDir="${i#*=}";;
-    -h|--help) usage >&2; exit ;;
-    -v|--version) version >&2; exit ;;
-    *) "Unknown option: ${i%=*}" >&2; exit ;; # remove everything after (and including) '='
+  --name=*) name="${i#*=}" ;; # remove everything before (and including) '='
+  --full-interval=*) fullInterval="${i#*=}" ;;
+  --inc-interval=*) incInterval="${i#*=}" ;;
+  --path=*) pathTo="${i#*=}" ;;
+  --ext=*) extensions="${i#*=}" ;;
+  --backup-dir=*) backupDir="${i#*=}" ;;
+  --gzip) gzip=true ;;
+  --date=*) backupDate="${i#*=}";;
+  --out-dir=*) outDir="${i#*=}";;
+  -h|--help) usage >&2; exit ;;
+  -v|--version) version >&2; exit ;;
+  *) "Unknown option: ${i%=*}" >&2; exit ;; # remove everything after (and including) '='
 esac
 done
 
