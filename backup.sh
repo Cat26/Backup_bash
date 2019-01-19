@@ -133,13 +133,18 @@ backup() {
 restore() {
   toRestore=$(find "${backupDir}" -name *"${name}_full_${backupDate}"* -o -name *"${name}_incr_${backupDate}"*)
   if [[ -z "$toRestore" ]]; then
-    allFiles=$(find "${backupDir}" -name *"${name}_full_"* -o -name *"${name}_incr_"*)
-    for f in allFiles; do
-      files+=$($f//[!0-9]/})
+    allFiles=$(find "${backupDir}" -name *"${name}_full_"* -o -name *"${name}_incr_"* | sort -n -r -t "_" -k2)
+    for f in ${allFiles}; do
+      files+=(${f//[!0-9]/})
     done
-    filesModified=${files}
+    searchDate=${backupDate//[!0-9]/}
+    for i in ${!files[@]}; do
+      if (( ${files[$i]} < ${searchDate} )); then
+        echo ${files[$i]}
+      fi
+    done
   fi
-  echo $filesModified
+  echo ${allFiles}
 }
 
 ## Extract options
