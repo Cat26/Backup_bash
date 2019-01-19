@@ -109,21 +109,25 @@ backup() {
       difference=$((${fullInterval} - ${incInterval}))
       while true; do
         fileName=$(fileNameGenerator  full)
+        backupPath=$(pathGenerator)
         tar ${packingOpt} ${fileName} ${backupPath}
         sleep ${incInterval}
         fileName=$(fileNameGenerator  incr)
+        backupPath=$(pathGenerator)
         tar --listed-incremental incr/backup.snar ${packingOpt} ${fileName} ${backupPath}
         sleep ${difference}
       done
     elif [[ -n ${fullInterval} ]] && [[ -z ${incInterval} ]]; then
       while true; do
         fileName=$(fileNameGenerator  full)
+        backupPath=$(pathGenerator)
         tar ${packingOpt} ${fileName} ${backupPath}
         sleep ${fullInterval}
       done
     elif [[ -z ${fullInterval} ]] && [[ -n ${incInterval} ]]; then
       while true; do
         fileName=$(fileNameGenerator  incr)
+        backupPath=$(pathGenerator)
         tar --listed-incremental incr/backup.snar ${packingOpt} ${fileName} ${backupPath}
         sleep ${incInterval}
       done
